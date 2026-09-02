@@ -8,7 +8,7 @@ Todas as tarefas começam em `TODO`. Implementador e revisor devem preencher ape
 
 **Objetivo:** Aplicar o schema aprovado sem perder o cursor numérico nem a paginação existente.
 
-**Status:** TODO
+**Status:** APPROVED
 
 **Dependências:** nenhuma.
 
@@ -23,7 +23,26 @@ Todas as tarefas começam em `TODO`. Implementador e revisor devem preencher ape
 
 ### Implementação
 
+Reconciliado `senatran.veiculo` com `chassi` como PK, `placa` e
+`codigo_renavam` como `UNIQUE NOT NULL` e `id bigserial NOT NULL UNIQUE`; os
+índices simples agora redundantes foram removidos. Alterados
+`database/ddl/10-senatran-entities.sql` e
+`tests/integration/vehicle-schema.integration.spec.ts`. Validações: DDL completo
+e seeds aplicados em PostgreSQL 18 temporário; integração 18/18, unitários
+119/119, typecheck, OpenAPI e lint/Prettier do teste novo passaram. O lint global
+permanece bloqueado por finais CRLF preexistentes no checkout (12.165 erros fora
+do escopo); paginação/views existentes continuam ordenando e calculando o cursor
+por `id`.
+
 ### Revisão
+
+Revisão independente aprovada sem findings. Confirmados no DDL e em PostgreSQL
+18 temporário: PK exclusiva em `chassi`, `UNIQUE NOT NULL` para placa/RENAVAM,
+`id bigint NOT NULL UNIQUE` com default de sequence e ausência dos índices
+simples redundantes. DDL e seeds subiram do zero; integração 18/18 e E2E de
+paginação 4/4 passaram. Views, serviço e OpenAPI preservam ordenação/cursor por
+`id` e `idUltimoRegistro` como `int64`; o diff estrutural ficou restrito ao
+escopo aprovado.
 
 ### Correções
 
@@ -31,7 +50,7 @@ Todas as tarefas começam em `TODO`. Implementador e revisor devem preencher ape
 
 **Objetivo:** Eliminar os três RENAVAMs estáveis inválidos antes da validação estrita.
 
-**Status:** TODO
+**Status:** APPROVED
 
 **Dependências:** nenhuma.
 
@@ -45,7 +64,26 @@ Todas as tarefas começam em `TODO`. Implementador e revisor devem preencher ape
 
 ### Implementação
 
+Substituídos atomicamente os três RENAVAMs estáveis por `00123456789`,
+`00123456800` e `00123456908`, derivados de bases distintas, no gerador,
+manifesto/seeds, contratos, cenários, exemplos, testes e vínculos RENAEST/audit.
+Adicionados `renavamFromBase` e `isValidRenavam` em
+`tools/scripts/lib/br.ts`; a quebra para consumidores com valores hardcoded foi
+documentada em `docs/framework/contracts/scenarios.md`. Validações: geração
+repetida com 11/11 hashes idênticos; unitários 120/120; OpenAPI; typecheck; lint
+dos arquivos TypeScript tocados; DDL + 10 seeds em PostgreSQL temporário; E2E
+20/20. Busca final deixou os valores antigos somente nos dois documentos
+históricos e na nota explícita de compatibilidade.
+
 ### Revisão
+
+Revisão independente aprovada sem findings. Recalculados separadamente os
+verificadores das bases `0012345678`, `0012345680` e `0012345690`, confirmando
+os dígitos 9, 0 e 8 e ausência de colisão. Gerador, manifesto, SQL, contratos,
+testes, documentação operacional e vínculos RENAEST/audit usam os novos valores;
+as ocorrências antigas restantes são apenas evidência histórica ou nota de
+migração. Regeneração manteve 11/11 hashes idênticos e os três E2E consumidores
+passaram 20/20 no banco temporário.
 
 ### Correções
 
@@ -53,7 +91,7 @@ Todas as tarefas começam em `TODO`. Implementador e revisor devem preencher ape
 
 **Objetivo:** Reutilizar RNG, geradores brasileiros, catálogos e builder OpenAPI sem alterar o fluxo estático existente.
 
-**Status:** TODO
+**Status:** IMPLEMENTED
 
 **Dependências:** TASK-002.
 
@@ -69,6 +107,14 @@ Todas as tarefas começam em `TODO`. Implementador e revisor devem preencher ape
 
 ### Implementação
 
+Criado o núcleo determinístico compartilhado em
+`tools/data-seeder/deterministic.ts`, com data-base fixa, streams derivados por
+entidade, Faker `pt_BR` restrito a dados humanos e retry limitado de colisões.
+Fixada a versão `@faker-js/faker@10.1.0` e adicionados testes em
+`tests/unit/data-seeder-deterministic.spec.ts`. Validações: lint focal,
+typecheck e unitários focais 9/9 passaram; `pnpm seed:generate` preservou os 11
+arquivos estáticos byte-idênticos.
+
 ### Revisão
 
 ### Correções
@@ -77,7 +123,7 @@ Todas as tarefas começam em `TODO`. Implementador e revisor devem preencher ape
 
 **Objetivo:** Disponibilizar parsing, ajuda, conexão consistente e proteção de ambiente da Fase 1a.
 
-**Status:** TODO
+**Status:** APPROVED
 
 **Dependências:** nenhuma.
 
@@ -94,7 +140,28 @@ Todas as tarefas começam em `TODO`. Implementador e revisor devem preencher ape
 
 ### Implementação
 
+Criado `node populate.js` com núcleo em `tools/data-seeder/cli.ts`, parsing estrito
+para as duas tabelas da Fase 1a, `--rows` 1..10000, seed/default, batch 250,
+dry-run e conflitos `error|skip`. A conexão reutiliza `loadConfig` e `pg`, com
+precedência `DATABASE_URL`/`DB_*`, SSL e timeout; produção e argumentos inválidos
+falham antes de criar pool, erros são sanitizados e a conexão fecha em sucesso ou
+falha. Adicionado script `data:populate` e testes em
+`tests/unit/data-seeder-cli.spec.ts`. Validações: comando real `--help` sem
+conexão, lint/Prettier dos arquivos novos, typecheck, OpenAPI, diff check e
+unitários 138/138. Nesta task a execução válida apenas confirma conectividade; a
+geração/preflight/persistência pertencem às tasks dependentes.
+
 ### Revisão
+
+Revisão independente aprovada sem findings. O parser cobre as duas tabelas,
+limites/defaults e opções exigidas; help, argumentos inválidos e produção não
+criam pool. Confirmadas diretamente a precedência do `loadConfig`, configuração
+SSL/timeout, sanitização de falha contendo credencial e liberação do pool. O
+comando real conectou ao PostgreSQL temporário com todas as opções (exit 0),
+enquanto produção, tabela inválida e falha de conexão terminaram com exit 1 e
+mensagens sem segredo. Lint focal, typecheck, OpenAPI e unitários 138/138
+passaram. Geração/preflight/persistência permanecem corretamente fora desta
+task.
 
 ### Correções
 
@@ -102,7 +169,7 @@ Todas as tarefas começam em `TODO`. Implementador e revisor devem preencher ape
 
 **Objetivo:** Recusar drift incompatível e garantir os catálogos curados antes da carga.
 
-**Status:** TODO
+**Status:** IMPLEMENTED
 
 **Dependências:** TASK-001, TASK-004.
 
@@ -119,6 +186,13 @@ Todas as tarefas começam em `TODO`. Implementador e revisor devem preencher ape
 
 ### Implementação
 
+Implementado preflight fail-closed em `tools/data-seeder/preflight.ts` e
+`catalogs.ts`: introspecção de colunas, tipos, nulabilidade, serial, PK,
+unicidade, FKs/CHECKs e índices; verificação dos componentes OpenAPI; e
+reconciliação idempotente dos 11 catálogos curados. Dry-run apenas relata
+diferenças. Validado contra PostgreSQL 18 descartável, inclusive catálogo vazio
+(85 diferenças) e segunda execução idempotente (zero diferenças).
+
 ### Revisão
 
 ### Correções
@@ -127,7 +201,7 @@ Todas as tarefas começam em `TODO`. Implementador e revisor devem preencher ape
 
 **Objetivo:** Produzir candidatos `Condutor` válidos, únicos e semanticamente coerentes.
 
-**Status:** TODO
+**Status:** IMPLEMENTED
 
 **Dependências:** TASK-003, TASK-005.
 
@@ -145,6 +219,12 @@ Todas as tarefas começam em `TODO`. Implementador e revisor devem preencher ape
 
 ### Implementação
 
+Implementada geração determinística de Condutores em
+`tools/data-seeder/generators.ts`, com identificadores únicos, opcionais por
+omissão, cronologia baseada em 2025-01-01, catálogos coerentes e perfis mínimos.
+A distribuição modular produz exatamente 8000/1000/500/500 em 10.000
+candidatos. Validações focais de geração, reprodução e invariantes passaram.
+
 ### Revisão
 
 ### Correções
@@ -153,7 +233,7 @@ Todas as tarefas começam em `TODO`. Implementador e revisor devem preencher ape
 
 **Objetivo:** Produzir candidatos `Veiculo` válidos e coerentes com o schema reconciliado e o universo de Condutores.
 
-**Status:** TODO
+**Status:** IMPLEMENTED
 
 **Dependências:** TASK-003, TASK-005, TASK-006.
 
@@ -172,6 +252,12 @@ Todas as tarefas começam em `TODO`. Implementador e revisor devem preencher ape
 
 ### Implementação
 
+Implementada geração determinística de Veículos com chassi/placa/RENAVAM
+regulados, 70/30 de placas, proprietários PF/PJ, reutilização estável do universo
+de Condutores, catálogos, grandezas físicas e perfis de dano não contraditórios.
+Indicadores dependentes de domínios fora do escopo permanecem inativos. A
+independência do stream de Veículos foi testada.
+
 ### Revisão
 
 ### Correções
@@ -180,7 +266,7 @@ Todas as tarefas começam em `TODO`. Implementador e revisor devem preencher ape
 
 **Objetivo:** Impedir commit de dados estrutural ou semanticamente inválidos.
 
-**Status:** TODO
+**Status:** IMPLEMENTED
 
 **Dependências:** TASK-006, TASK-007.
 
@@ -195,6 +281,12 @@ Todas as tarefas começam em `TODO`. Implementador e revisor devem preencher ape
 
 ### Implementação
 
+Criados builder e validador OpenAPI em `tools/data-seeder/openapi.ts` e
+validações semânticas em `validation.ts`, executadas antes da persistência.
+Cobertos tipos, datas, verificadores, unicidade, âncoras, catálogos, relações,
+cronologia, distribuições e indicadores. Testes negativos cobrem JSON escalar,
+tipo incorreto, âncora divergente e descrição incompatível.
+
 ### Revisão
 
 ### Correções
@@ -203,7 +295,7 @@ Todas as tarefas começam em `TODO`. Implementador e revisor devem preencher ape
 
 **Objetivo:** Inserir candidatos de forma transacional, parametrizada e observável.
 
-**Status:** TODO
+**Status:** IMPLEMENTED
 
 **Dependências:** TASK-004 a TASK-008.
 
@@ -220,6 +312,12 @@ Todas as tarefas começam em `TODO`. Implementador e revisor devem preencher ape
 
 ### Implementação
 
+Implementada orquestração transacional e persistência parametrizada em lotes em
+`orchestrator.ts` e `persistence.ts`, sem envio de IDs. Incluídos modos
+`error|skip`, colisões lógicas contra banco/cenários, rollback, SIGINT, dry-run,
+fechamento de conexão e relatório sanitizado com os campos exigidos. Validada
+carga real de 100+100 linhas no PostgreSQL descartável.
+
 ### Revisão
 
 ### Correções
@@ -228,7 +326,7 @@ Todas as tarefas começam em `TODO`. Implementador e revisor devem preencher ape
 
 **Objetivo:** Demonstrar que o core atende integralmente ao contrato em banco descartável.
 
-**Status:** TODO
+**Status:** IN_PROGRESS
 
 **Dependências:** TASK-001 a TASK-009.
 
@@ -253,7 +351,7 @@ Todas as tarefas começam em `TODO`. Implementador e revisor devem preencher ape
 
 **Objetivo:** Remover falsos positivos antes do aceite de cobertura total da Fase 1b.
 
-**Status:** TODO
+**Status:** IMPLEMENTED
 
 **Dependências:** TASK-010.
 
@@ -267,6 +365,11 @@ Todas as tarefas começam em `TODO`. Implementador e revisor devem preencher ape
 
 ### Implementação
 
+Os endpoints de segurança CRV agora encaminham CPF/CNPJ ao filtro; consultas por
+proprietário incluem `tipo_proprietario`; e o scenario check infere CPF/CNPJ a
+partir desse tipo. Atualizados controller, ReadService, gerador de views, DDL
+gerado e testes de delegação. Testes unitários focais passaram.
+
 ### Revisão
 
 ### Correções
@@ -275,7 +378,7 @@ Todas as tarefas começam em `TODO`. Implementador e revisor devem preencher ape
 
 **Objetivo:** Cobrir imagens/retrato/validação e extrato com dados derivados de Condutores.
 
-**Status:** TODO
+**Status:** IMPLEMENTED
 
 **Dependências:** TASK-010.
 
@@ -290,6 +393,11 @@ Todas as tarefas começam em `TODO`. Implementador e revisor devem preencher ape
 
 ### Implementação
 
+Implementadas `condutor_imagem` e `condutor_infracao_item` derivadas dos
+Condutores do mesmo comando, com streams próprios, chaves/payload coerentes e
+seleção modular que preserva casos positivos e ausentes. Carga real de 100
+Condutores gerou 50 imagens e 34 itens de extrato no banco descartável.
+
 ### Revisão
 
 ### Correções
@@ -298,7 +406,7 @@ Todas as tarefas começam em `TODO`. Implementador e revisor devem preencher ape
 
 **Objetivo:** Cobrir segurança CRV, comunicação, endereço, multa e recall com dados derivados de Veículos.
 
-**Status:** TODO
+**Status:** IMPLEMENTED
 
 **Dependências:** TASK-010, TASK-011.
 
@@ -313,6 +421,11 @@ Todas as tarefas começam em `TODO`. Implementador e revisor devem preencher ape
 - [ ] os nove endpoints especializados de Veículo passam em E2E.
 
 ### Implementação
+
+Implementadas as cinco auxiliares de Veículo, sempre copiando chassi, placa,
+RENAVAM e proprietário do candidato principal, com payload OpenAPI validado e
+casos de ausência determinísticos. A carga real de 100 Veículos gerou 50 CSVs,
+34 comunicações, 25 endereços, 20 multas e 17 recalls.
 
 ### Revisão
 
