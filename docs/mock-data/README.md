@@ -1,31 +1,36 @@
 # Senatran Data Seeder
 
-Este projeto especifica uma ferramenta para gerar e inserir dados sintéticos, determinísticos e semanticamente coerentes no mock da SENATRAN.
+Documentação de apoio para gerar dados sintéticos, determinísticos e coerentes
+para o mock local da SENATRAN. A ferramenta é exclusiva para desenvolvimento e
+testes; uso com dados ou ambientes de produção é proibido.
 
-## Escopo atual
+## Escopo
 
-- **Fase 1a — core:** catálogos necessários, 10.000 Condutores e 10.000 Veículos.
-- **Fase 1b — cobertura dos controllers:** sete tabelas auxiliares diretamente usadas pelos endpoints de Veículos e Condutores.
-- Fora do escopo: população geral dos demais domínios SENATRAN e execução em produção.
+- Condutores e Veículos, incluindo os catálogos de que dependem.
+- Auxiliares usadas diretamente pelos endpoints desses dois domínios.
+- Validação dos dados gerados antes da gravação.
+- Fora do escopo: popular todos os demais domínios do mock ou alterar o contrato
+  da API para acomodar o seeder.
 
-## Estágio
+## Estado atual
 
-A investigação e as decisões foram consolidadas. A especificação está pronta para implementação, que deve começar pelos pré-requisitos estruturais descritos em `generation-spec.md` e `tasks.md`. Este repositório ainda não contém o código-fonte no qual as tasks serão executadas; consulte `open-questions.md`.
+A investigação foi consolidada e existe uma implementação parcial em
+`tools/data-seeder/`, acompanhada por alterações de DDL, fixtures e testes. Esse
+trabalho deve ser avaliado e aproveitado; os passos abaixo não presumem que ele
+esteja concluído.
 
-## Documentos oficiais
+## Próximos passos
 
-- [`investigation.md`](investigation.md): fatos encontrados no levantamento e no repositório analisado.
-- [`decisions.md`](decisions.md): decisões aprovadas pelo owner.
-- [`generation-spec.md`](generation-spec.md): fonte de verdade funcional para a implementação.
-- [`tasks.md`](tasks.md): plano executável, dependências e critérios de aceite.
-- [`open-questions.md`](open-questions.md): questões que ainda exigem decisão.
+1. Alinhar o DDL com os documentos.
+2. Definir formatos específicos.
+3. Definir ranges.
+4. Criar os JSON Schemas de Condutores e Veículos.
+5. Concluir o gerador CSV e validar a geração.
 
-As fontes brutas permanecem em [`../raw-investigation/`](../raw-investigation/) como material histórico. `proposed-decisions.md` também é histórico e foi substituído, para fins normativos, por `decisions.md`.
+## Onde encontrar as informações
 
-## Ordem de leitura
-
-1. `decisions.md`;
-2. `generation-spec.md`;
-3. `tasks.md`;
-4. `investigation.md`, para evidências e contexto;
-5. `open-questions.md`.
+- [`investigation.md`](investigation.md): fatos encontrados no repositório.
+- [`decisions.md`](decisions.md): decisões técnicas que afetam os dados gerados.
+- [`generation-spec.md`](generation-spec.md): sequência de trabalho para a próxima etapa.
+- [`tasks.md`](tasks.md): checklist resumido.
+- [`../raw-investigation/`](../raw-investigation/): fontes brutas preservadas como histórico.
