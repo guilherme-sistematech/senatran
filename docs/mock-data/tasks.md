@@ -1,9 +1,9 @@
 # Checklist
 
-- [ ] A — Alinhar DDL com documentos
-- [ ] B — Definir formatos específicos
-- [ ] C — Definir ranges
-- [ ] D — Criar JSON Schema de Condutores
-- [ ] D — Criar JSON Schema de Veículos
-- [ ] E — Implementar gerador CSV
-- [ ] Validar geração
+- [x] A — Alinhar DDL com documentos
+- [x] B — Definir formatos específicos
+- [x] C — Definir ranges
+- [x] D — Criar JSON Schema de Condutores
+- [x] D — Criar JSON Schema de Veículos
+- [x] E — Implementar gerador CSV
+- [x] Validar geração

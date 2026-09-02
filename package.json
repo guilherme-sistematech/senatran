@@ -28,6 +28,7 @@
     "db:seed": "bash database/seed.sh",
     "views:generate": "tsx tools/scripts/generate-views.ts",
     "seed:generate": "tsx tools/scripts/generate-seed.ts",
+    "data:generate": "tsx tools/data-seeder/csv-cli.ts",
     "data:populate": "node populate.js",
     "devai": "node ../devai/packages/cli/dist/bin.js",
     "devai:doctor": "node ../devai/packages/cli/dist/bin.js doctor --adopter --repo-root .",

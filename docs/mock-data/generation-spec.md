@@ -1,49 +1,49 @@
-# Base para a próxima etapa
+# Especificação de geração
 
-Esta não é uma especificação definitiva. Ela organiza a sequência de trabalho sem
-preencher formatos, ranges ou schemas que ainda precisam ser definidos. Antes de
-implementar, compare cada etapa com o código parcial existente em
-`tools/data-seeder/`.
+## DDL e colunas CSV
 
-## A — DDL
+`senatran.veiculo` usa `chassi` como chave primária, `placa` e
+`codigo_renavam` como valores obrigatórios e únicos, e mantém `id bigserial`
+único como cursor técnico. `senatran.condutor` mantém `id bigserial` como chave
+primária. `id` é gerado pelo banco e não aparece nos CSVs.
 
-- Comparar o DDL atual com o data model e com as decisões registradas.
-- Confirmar chassi como PK, placa e RENAVAM únicos e `id` como cursor técnico.
-- Registrar apenas divergências que afetem a geração ou a leitura dos dados.
-- Não ampliar a revisão para uma remodelagem geral do banco.
+As propriedades camelCase do payload que correspondem às colunas relacionais
+devem ter o mesmo valor. O schema de cada tabela declara essa correspondência em
+`x-source` e a ordem do cabeçalho em `x-columnOrder`.
 
-## B — Formatos
+## Formatos específicos
 
-- Consolidar os formatos exigidos pelo OpenAPI, DDL, testes e geradores existentes.
-- Resolver inconsistências com evidência das fontes; não inventar regra de domínio.
-- Definir a correspondência entre colunas de busca e propriedades do payload.
+| Campo                | Tipo/formato                                           | Único na massa      | Geração                                       |
+| -------------------- | ------------------------------------------------------ | ------------------- | --------------------------------------------- |
+| CPF                  | texto, 11 dígitos, verificadores mod-11                | sim                 | base aleatória determinística + verificadores |
+| CNPJ de proprietário | texto, 14 dígitos, matriz `0001`, verificadores mod-11 | não                 | base determinística + `0001` + verificadores  |
+| registro CNH         | texto, 11 dígitos                                      | sim                 | dígitos determinísticos                       |
+| RENACH               | texto, `RN` + 10 dígitos                               | sim                 | prefixo + dígitos determinísticos             |
+| impedimento/PGU/PID  | texto, `IMP`/`PGU`/`PID` + 7 dígitos                   | sim quando presente | prefixo + índice preenchido com zeros         |
+| placa                | texto, `LLLNLNN` ou `LLLNNNN`, sem I/O/Q               | sim                 | gerador regulado; 70% Mercosul e 30% legada   |
+| chassi               | texto, 17 caracteres VIN, sem I/O/Q                    | sim                 | gerador regulado                              |
+| RENAVAM              | texto, 11 dígitos, verificador mod-11                  | sim                 | base determinística + verificador             |
+| motor/câmbio         | texto, `MOT`/`CAM` + 7 dígitos                         | sim quando presente | prefixo + índice preenchido com zeros         |
 
-## C — Ranges
+Nomes e endereços usam `@faker-js/faker` 10.1.0 com locale `pt_BR` e seed
+derivada por entidade. Identificadores regulados não usam Faker.
 
-- Definir limites e conjuntos de valores apenas onde houver fonte ou necessidade
-  técnica verificável.
-- Preservar determinismo, unicidade necessária e ausência de colisão com chaves de
-  cenário.
-- Preferir casos mínimos representativos quando não houver distribuição conhecida.
+## Ranges e conjuntos
 
-## D — JSON Schema
+- nascimento: 1945-01-01 a 2006-12-28 (18 a 80 anos na data-base);
+- primeira habilitação: entre 18 e 35 anos após o nascimento;
+- emissão de CNH: de 2015 a 2024 e nunca antes da primeira habilitação;
+- validade: 2024 para vencida ou 2026 a 2033 para as demais;
+- situação CNH: `A`, `V`, `B`, `S`, `C`, com massa de referência 80/10/5/5;
+- sexo: `1` ou `2`; booleanos de indicadores: `true` ou `false`;
+- fabricação: 1990 a 2024; ano-modelo igual ao de fabricação ou um ano maior;
+- potência: 25 a 300; cilindradas: 250 a 6000; eixos: 2 a 3;
+- lotação: 3 a 42; PBT: 2000 a 16000; CMT: 3500 a 25000;
+  CMC: 4000 a 30000;
+- códigos de município, marca/modelo, cor, espécie, tipo, carroceria,
+  categoria, combustível, proprietário e situação CNH vêm dos catálogos
+  curados do projeto.
 
-- Criar um schema para Condutores e outro para Veículos depois de fechar formatos
-  e ranges.
-- Derivar a estrutura do contrato OpenAPI e explicitar as âncoras relacionais.
-- Validar os objetos antes de qualquer persistência.
-
-## E — Gerador CSV
-
-- Reaproveitar os componentes existentes que forem compatíveis com A–D.
-- Gerar dados sintéticos e determinísticos na ordem: referências, Condutores,
-  Veículos e auxiliares diretas.
-- Validar o CSV e os payloads antes de gravar no banco.
-- Recusar produção e evitar dados reais, segredos e valores dependentes do relógio.
-
-## Validação final
-
-- Executar a geração duas vezes com a mesma configuração e comparar os resultados.
-- Validar formatos, ranges, schemas, unicidade, referências e chaves de cenário.
-- Exercitar o volume acordado em banco descartável.
-- Executar `pnpm check` e os testes de integração/e2e relacionados.
+Os schemas JSON em `tools/data-seeder/schemas/` são a definição estruturada
+consumida pelo gerador CSV. Extensões `x-*` registram origem, ordem, unicidade e
+limites de data que não são palavras-chave nativas do JSON Schema.
