@@ -6,8 +6,18 @@ import {
   isValidPlate,
   isValidRenavam,
 } from '../scripts/lib/br.js';
-import { generateCondutores, generateVeiculos } from './generators.js';
-import { validateCondutores, validateVeiculos } from './validation.js';
+import {
+  generateAgentes,
+  generateCondutores,
+  generateDispositivos,
+  generateVeiculos,
+} from './generators.js';
+import {
+  validateAgentes,
+  validateCondutores,
+  validateDispositivos,
+  validateVeiculos,
+} from './validation.js';
 
 interface SchemaProperty {
   type?: string | string[];
@@ -32,8 +42,12 @@ export interface CsvDataSchema extends SchemaProperty {
   type: 'object';
   properties: Record<string, SchemaProperty>;
   required: string[];
-  'x-table': 'senatran.condutor' | 'senatran.veiculo';
-  'x-entity': 'condutor' | 'veiculo';
+  'x-table':
+    | 'senatran.condutor'
+    | 'senatran.veiculo'
+    | 'renainf.agente'
+    | 'renainf.dispositivo';
+  'x-entity': 'condutor' | 'veiculo' | 'agente' | 'dispositivo';
   'x-columnOrder': string[];
 }
 
@@ -146,7 +160,9 @@ export const loadCsvSchema = (path: string): CsvDataSchema => {
     !schema.properties ||
     !Array.isArray(schema.required) ||
     !Array.isArray(schema['x-columnOrder']) ||
-    !['condutor', 'veiculo'].includes(schema['x-entity'])
+    !['condutor', 'veiculo', 'agente', 'dispositivo'].includes(
+      schema['x-entity'],
+    )
   ) {
     throw new Error(`Invalid data schema: ${path}`);
   }
@@ -170,18 +186,32 @@ const buildRows = (
   count: number,
   seed: number,
 ): Record<string, unknown>[] => {
-  const candidates =
-    schema['x-entity'] === 'condutor'
-      ? generateCondutores(count, seed).candidates
-      : generateVeiculos(count, seed).candidates;
-  if (schema['x-entity'] === 'condutor') {
-    validateCondutores(
-      candidates as ReturnType<typeof generateCondutores>['candidates'],
-    );
-  } else {
-    validateVeiculos(
-      candidates as ReturnType<typeof generateVeiculos>['candidates'],
-    );
+  let candidates: Record<string, unknown>[];
+  switch (schema['x-entity']) {
+    case 'condutor': {
+      const generated = generateCondutores(count, seed).candidates;
+      validateCondutores(generated);
+      candidates = generated as unknown as Record<string, unknown>[];
+      break;
+    }
+    case 'veiculo': {
+      const generated = generateVeiculos(count, seed).candidates;
+      validateVeiculos(generated);
+      candidates = generated as unknown as Record<string, unknown>[];
+      break;
+    }
+    case 'agente': {
+      const generated = generateAgentes(count, seed).candidates;
+      validateAgentes(generated);
+      candidates = generated as unknown as Record<string, unknown>[];
+      break;
+    }
+    case 'dispositivo': {
+      const generated = generateDispositivos(count, seed).candidates;
+      validateDispositivos(generated);
+      candidates = generated as unknown as Record<string, unknown>[];
+      break;
+    }
   }
   const rows = candidates.map((candidate, index) => {
     const row: Record<string, unknown> = {};

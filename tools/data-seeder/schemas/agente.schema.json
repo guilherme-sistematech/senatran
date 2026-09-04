@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://senatran.local/schemas/agente.schema.json",
+  "title": "CSV renainf.agente",
+  "type": "object",
+  "additionalProperties": false,
+  "x-table": "renainf.agente",
+  "x-entity": "agente",
+  "x-columnOrder": ["cpf", "matricula", "codigo_orgao_autuador", "ativo"],
+  "required": ["cpf", "matricula", "codigo_orgao_autuador", "ativo"],
+  "properties": {
+    "cpf": {
+      "type": "string",
+      "format": "cpf",
+      "pattern": "^[0-9]{11}$",
+      "x-source": "cpf"
+    },
+    "matricula": {
+      "type": "string",
+      "pattern": "^AGT[0-9]{9}$",
+      "x-source": "matricula"
+    },
+    "codigo_orgao_autuador": {
+      "type": "string",
+      "enum": ["204020", "380090", "150070", "447010", "999999"],
+      "x-source": "codigoOrgaoAutuador"
+    },
+    "ativo": { "type": "boolean", "default": true, "x-source": "ativo" }
+  }
+}

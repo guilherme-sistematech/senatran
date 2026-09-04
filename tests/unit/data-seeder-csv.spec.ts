@@ -8,11 +8,11 @@ import {
 } from '../../tools/data-seeder/csv-generator.js';
 import { parseCsvCliArgs } from '../../tools/data-seeder/csv-cli.js';
 
-const schema = (name: 'condutor' | 'veiculo') =>
+const schema = (name: 'condutor' | 'veiculo' | 'agente' | 'dispositivo') =>
   resolve(`tools/data-seeder/schemas/${name}.schema.json`);
 
 describe('data seeder CSV', () => {
-  it.each(['condutor', 'veiculo'] as const)(
+  it.each(['condutor', 'veiculo', 'agente', 'dispositivo'] as const)(
     'loads the valid %s JSON Schema and writes deterministic rows',
     (entity) => {
       const definition = loadCsvSchema(schema(entity));
@@ -38,9 +38,30 @@ describe('data seeder CSV', () => {
       expect(content.split('\n')[0]).toBe(
         definition['x-columnOrder'].join(','),
       );
-      expect(content).toContain('"{""');
+      if (
+        entity === 'condutor' ||
+        entity === 'veiculo' ||
+        entity === 'dispositivo'
+      ) {
+        expect(content).toContain('"{""');
+      }
     },
   );
+
+  it('serializes coherent dispositivo JSON without reserved ID collisions', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'senatran-csv-'));
+    const output = join(directory, 'dispositivos.csv');
+    generateCsv({
+      schemaPath: schema('dispositivo'),
+      rows: 25,
+      outputPath: output,
+      seed: 77,
+    });
+    const content = readFileSync(output, 'utf8');
+    expect(content).toContain('DEV-CSV-000001');
+    expect(content).not.toMatch(/DEV-(?:000[1-9]|001[0-5]),/);
+    expect(content).toContain('""idDispositivo"":""DEV-CSV-000001""');
+  });
 
   it('parses the minimal CLI and default seed', () => {
     expect(

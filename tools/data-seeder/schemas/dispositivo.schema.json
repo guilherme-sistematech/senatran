@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://senatran.local/schemas/dispositivo.schema.json",
+  "title": "CSV renainf.dispositivo",
+  "type": "object",
+  "additionalProperties": false,
+  "x-table": "renainf.dispositivo",
+  "x-entity": "dispositivo",
+  "x-columnOrder": [
+    "id_dispositivo",
+    "codigo_orgao_autuador",
+    "homologado",
+    "ativo",
+    "sne_aderido",
+    "payload"
+  ],
+  "required": [
+    "id_dispositivo",
+    "codigo_orgao_autuador",
+    "homologado",
+    "ativo",
+    "sne_aderido",
+    "payload"
+  ],
+  "properties": {
+    "id_dispositivo": {
+      "type": "string",
+      "pattern": "^DEV-CSV-[0-9]{6}$",
+      "x-source": "idDispositivo",
+      "x-unique": true
+    },
+    "codigo_orgao_autuador": {
+      "type": "string",
+      "enum": ["204020", "380090", "150070", "447010", "999999"],
+      "x-source": "codigoOrgaoAutuador"
+    },
+    "homologado": {
+      "type": "boolean",
+      "default": true,
+      "x-source": "homologado"
+    },
+    "ativo": { "type": "boolean", "default": true, "x-source": "ativo" },
+    "sne_aderido": {
+      "type": "boolean",
+      "default": true,
+      "x-source": "sneAderido"
+    },
+    "payload": {
+      "type": "object",
+      "x-source": "payload",
+      "x-csv-json": true,
+      "required": [
+        "idDispositivo",
+        "codigoOrgaoAutuador",
+        "homologado",
+        "ativo",
+        "sneAderido"
+      ],
+      "properties": {
+        "idDispositivo": { "type": "string", "pattern": "^DEV-CSV-[0-9]{6}$" },
+        "codigoOrgaoAutuador": {
+          "type": "string",
+          "enum": ["204020", "380090", "150070", "447010", "999999"]
+        },
+        "homologado": { "type": "boolean" },
+        "ativo": { "type": "boolean" },
+        "sneAderido": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

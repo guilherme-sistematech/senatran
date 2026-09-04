@@ -1,5 +1,13 @@
 -- SENATRAN mock — RENAINF transactional tables (infraction lifecycle).
 
+create table renainf.agente (
+  cpf                     text not null,
+  matricula               text not null,
+  codigo_orgao_autuador   text not null,
+  ativo                   boolean not null default true,
+  primary key (cpf, matricula, codigo_orgao_autuador)
+);
+
 create table renainf.dispositivo (
   id_dispositivo        text primary key,
   codigo_orgao_autuador text not null,

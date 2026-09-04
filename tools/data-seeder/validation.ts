@@ -13,12 +13,18 @@ import {
   ESPECIES,
   MARCAS_MODELOS,
   MUNICIPIOS,
+  ORGAOS_AUTUADOR,
   SITUACOES_CNH,
   TIPOS_PROPRIETARIO,
   TIPOS_VEICULO,
   type Code,
 } from '../scripts/lib/refdata.js';
-import type { CondutorCandidate, VeiculoCandidate } from './generators.js';
+import type {
+  AgenteCandidate,
+  CondutorCandidate,
+  DispositivoCandidate,
+  VeiculoCandidate,
+} from './generators.js';
 import { validateOpenApiPayload } from './openapi.js';
 
 const assert: (condition: unknown, message: string) => asserts condition = (
@@ -289,5 +295,71 @@ export const validateVeiculos = (
     ).length;
     assert(mercosul === 7_000, 'Mercosul distribution');
     assert(candidates.length - mercosul === 3_000, 'legacy plate distribution');
+  }
+};
+
+export const validateAgentes = (
+  candidates: readonly AgenteCandidate[],
+): void => {
+  unique(
+    candidates.map((item) =>
+      [item.cpf, item.matricula, item.codigoOrgaoAutuador].join('|'),
+    ),
+    'agente composite key',
+  );
+  for (const candidate of candidates) {
+    assert(isValidCpf(candidate.cpf), `invalid CPF ${candidate.cpf}`);
+    assert(candidate.matricula.trim().length > 0, 'empty matricula');
+    assert(
+      ORGAOS_AUTUADOR.some(
+        (item) => item.codigo === candidate.codigoOrgaoAutuador,
+      ),
+      'codigoOrgaoAutuador is not curated',
+    );
+    assert(typeof candidate.ativo === 'boolean', 'ativo must be boolean');
+  }
+};
+
+export const validateDispositivos = (
+  candidates: readonly DispositivoCandidate[],
+): void => {
+  unique(
+    candidates.map((item) => item.idDispositivo),
+    'idDispositivo',
+  );
+  for (const candidate of candidates) {
+    assert(
+      /^DEV-CSV-\d{6}$/.test(candidate.idDispositivo),
+      'invalid idDispositivo',
+    );
+    assert(
+      !/^DEV-(?:000[1-9]|001[0-5])$/.test(candidate.idDispositivo),
+      'idDispositivo collides with reserved seed',
+    );
+    assert(
+      ORGAOS_AUTUADOR.some(
+        (item) => item.codigo === candidate.codigoOrgaoAutuador,
+      ),
+      'codigoOrgaoAutuador is not curated',
+    );
+    for (const [field, value] of [
+      ['homologado', candidate.homologado],
+      ['ativo', candidate.ativo],
+      ['sneAderido', candidate.sneAderido],
+    ] as const) {
+      assert(typeof value === 'boolean', `${field} must be boolean`);
+    }
+    for (const [field, expected] of [
+      ['idDispositivo', candidate.idDispositivo],
+      ['codigoOrgaoAutuador', candidate.codigoOrgaoAutuador],
+      ['homologado', candidate.homologado],
+      ['ativo', candidate.ativo],
+      ['sneAderido', candidate.sneAderido],
+    ] as const) {
+      assert(
+        candidate.payload[field] === expected,
+        `${field} payload mismatch`,
+      );
+    }
   }
 };

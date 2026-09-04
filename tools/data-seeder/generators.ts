@@ -15,6 +15,7 @@ import {
   ESPECIES,
   MARCAS_MODELOS,
   MUNICIPIOS,
+  ORGAOS_AUTUADOR,
   SITUACOES_CNH,
   TIPOS_PROPRIETARIO,
   TIPOS_VEICULO,
@@ -58,6 +59,22 @@ export interface VeiculoCandidate {
     grandeMonta: boolean;
     recuperado: boolean;
   };
+  payload: Record<string, unknown>;
+}
+
+export interface AgenteCandidate {
+  cpf: string;
+  matricula: string;
+  codigoOrgaoAutuador: string;
+  ativo: boolean;
+}
+
+export interface DispositivoCandidate {
+  idDispositivo: string;
+  codigoOrgaoAutuador: string;
+  homologado: boolean;
+  ativo: boolean;
+  sneAderido: boolean;
   payload: Record<string, unknown>;
 }
 
@@ -320,4 +337,71 @@ export const generateVeiculos = (
       throw new Error('Veiculo collision retry limit reached');
   }
   return { candidates, attempts };
+};
+
+export const generateAgentes = (
+  rows: number,
+  seed: number,
+): GenerationResult<AgenteCandidate> => {
+  const candidates: AgenteCandidate[] = [];
+  const seen = new Set<string>();
+  let attempts = 0;
+  for (let index = 0; index < rows; index += 1) {
+    for (let retry = 0; retry < 100; retry += 1) {
+      attempts += 1;
+      const stream = createGenerationStream(seed + retry, `agente:${index}`);
+      const candidate = {
+        cpf: cpf(stream.rng),
+        matricula: `AGT${stream.rng.digits(9)}`,
+        codigoOrgaoAutuador:
+          ORGAOS_AUTUADOR[index % ORGAOS_AUTUADOR.length].codigo,
+        ativo: index % 10 !== 9,
+      };
+      const key = [
+        candidate.cpf,
+        candidate.matricula,
+        candidate.codigoOrgaoAutuador,
+      ].join('|');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      candidates.push(candidate);
+      break;
+    }
+    if (candidates.length !== index + 1) {
+      throw new Error('Agente collision retry limit reached');
+    }
+  }
+  return { candidates, attempts };
+};
+
+export const generateDispositivos = (
+  rows: number,
+  seed: number,
+): GenerationResult<DispositivoCandidate> => {
+  const candidates: DispositivoCandidate[] = [];
+  for (let index = 0; index < rows; index += 1) {
+    const stream = createGenerationStream(seed, `dispositivo:${index}`);
+    const idDispositivo = `DEV-CSV-${String(index + 1).padStart(6, '0')}`;
+    const codigoOrgaoAutuador =
+      ORGAOS_AUTUADOR[index % ORGAOS_AUTUADOR.length].codigo;
+    const homologado = stream.rng.int(0, 9) !== 0;
+    const ativo = index % 12 !== 11;
+    const sneAderido = index % 15 !== 14;
+    const payload = {
+      idDispositivo,
+      codigoOrgaoAutuador,
+      homologado,
+      ativo,
+      sneAderido,
+    };
+    candidates.push({
+      idDispositivo,
+      codigoOrgaoAutuador,
+      homologado,
+      ativo,
+      sneAderido,
+      payload,
+    });
+  }
+  return { candidates, attempts: rows };
 };
