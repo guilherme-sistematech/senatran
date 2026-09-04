@@ -47,3 +47,208 @@ derivada por entidade. Identificadores regulados não usam Faker.
 Os schemas JSON em `tools/data-seeder/schemas/` são a definição estruturada
 consumida pelo gerador CSV. Extensões `x-*` registram origem, ordem, unicidade e
 limites de data que não são palavras-chave nativas do JSON Schema.
+
+## Agente — especificação para próxima implementação
+
+A tabela abaixo é uma proposta ainda não implementada, adotada somente para
+viabilizar CSV → COPY → validação:
+
+```text
+x-table: renainf.agente
+x-entity: agente
+```
+
+Ordem das colunas:
+
+```text
+cpf
+matricula
+codigo_orgao_autuador
+ativo
+```
+
+Cabeçalho CSV:
+
+```text
+cpf,matricula,codigo_orgao_autuador,ativo
+```
+
+Regras de geração e validação:
+
+- gerar CPF sintético válido, com 11 dígitos e verificadores;
+- gerar matrícula determinística e não vazia;
+- obter `codigo_orgao_autuador` do catálogo `ORGAOS_AUTUADOR` já utilizado pelo
+  projeto;
+- emitir `ativo` como booleano explícito;
+- não repetir a combinação CPF + matrícula + órgão;
+- produzir conteúdo idêntico para os mesmos schema, quantidade e seed.
+
+COPY esperado:
+
+```sql
+\copy renainf.agente (
+  cpf,
+  matricula,
+  codigo_orgao_autuador,
+  ativo
+)
+FROM '<arquivo>'
+WITH (FORMAT csv, HEADER true);
+```
+
+Validação mínima:
+
+```sql
+select count(*) as total
+from renainf.agente;
+```
+
+```sql
+select
+  count(*) filter (where ativo) as ativos,
+  count(*) filter (where not ativo) as inativos
+from renainf.agente;
+```
+
+```sql
+select cpf, matricula, codigo_orgao_autuador, ativo
+from renainf.agente
+order by codigo_orgao_autuador, matricula
+limit 20;
+```
+
+```sql
+select a.codigo_orgao_autuador
+from renainf.agente a
+left join senatran.ref_orgao_autuador o
+  on o.codigo = a.codigo_orgao_autuador
+where o.codigo is null;
+```
+
+A última consulta deve retornar zero linhas. A unicidade da combinação deve ser
+garantida pela chave composta proposta e pelo validador do CSV.
+
+## Dispositivo — especificação para próxima implementação
+
+```text
+x-table: renainf.dispositivo
+x-entity: dispositivo
+```
+
+Ordem das colunas:
+
+```text
+id_dispositivo
+codigo_orgao_autuador
+homologado
+ativo
+sne_aderido
+payload
+```
+
+Cabeçalho CSV:
+
+```text
+id_dispositivo,codigo_orgao_autuador,homologado,ativo,sne_aderido,payload
+```
+
+Regras de geração e validação:
+
+- gerar `id_dispositivo` determinístico e único;
+- não usar os IDs seed `DEV-0001` a `DEV-0015`;
+- usar namespace próprio para os CSVs, com `DEV-CSV-000001`,
+  `DEV-CSV-000002`, ... como convenção proposta do gerador;
+- obter `codigo_orgao_autuador` do catálogo curado do projeto;
+- emitir `homologado`, `ativo` e `sne_aderido` como booleanos explícitos;
+- emitir `payload` como JSON válido em célula CSV corretamente escapada;
+- manter `payload.idDispositivo`, `payload.codigoOrgaoAutuador`,
+  `payload.homologado`, `payload.ativo` e `payload.sneAderido` coerentes com as
+  colunas correspondentes;
+- produzir conteúdo idêntico para os mesmos schema, quantidade e seed.
+
+COPY esperado:
+
+```sql
+\copy renainf.dispositivo (
+  id_dispositivo,
+  codigo_orgao_autuador,
+  homologado,
+  ativo,
+  sne_aderido,
+  payload
+)
+FROM '<arquivo>'
+WITH (FORMAT csv, HEADER true);
+```
+
+Validação mínima:
+
+```sql
+select count(*) as total
+from renainf.dispositivo;
+```
+
+```sql
+select
+  count(*) filter (where homologado and ativo) as utilizaveis,
+  count(*) filter (where not homologado) as nao_homologados,
+  count(*) filter (where not ativo) as inativos,
+  count(*) filter (where not sne_aderido) as nao_aderentes_sne
+from renainf.dispositivo;
+```
+
+```sql
+select
+  id_dispositivo,
+  codigo_orgao_autuador,
+  homologado,
+  ativo,
+  sne_aderido
+from renainf.dispositivo
+where id_dispositivo like 'DEV-CSV-%'
+order by id_dispositivo
+limit 20;
+```
+
+```sql
+select id_dispositivo
+from renainf.dispositivo
+where payload->>'idDispositivo' is distinct from id_dispositivo
+   or payload->>'codigoOrgaoAutuador' is distinct from codigo_orgao_autuador
+   or (payload->>'homologado')::boolean is distinct from homologado
+   or (payload->>'ativo')::boolean is distinct from ativo
+   or (payload->>'sneAderido')::boolean is distinct from sne_aderido;
+```
+
+A última consulta deve retornar zero linhas.
+
+## Plantão
+
+**STATUS: BLOQUEADO.**
+
+- Não existe tabela definida.
+- Não existe schema definido.
+- Não existe cabeçalho CSV definido.
+- A implementação depende da decisão pendente registrada em `decisions.md`.
+
+## Alterações técnicas esperadas
+
+| Arquivo | Responsabilidade na próxima implementação |
+| --- | --- |
+| `database/ddl/21-renainf.sql` | Adicionar somente a estrutura mínima proposta de agente; adicionar plantão apenas após sua definição. |
+| `tools/data-seeder/schemas/agente.schema.json` | Declarar tabela, entidade, ordem, obrigatoriedade, formato do CPF e tipos das quatro colunas. |
+| `tools/data-seeder/schemas/dispositivo.schema.json` | Declarar as seis colunas reais, unicidade do ID, booleanos e coerência das âncoras do payload. |
+| `tools/data-seeder/schemas/plantao.schema.json` | Criar somente após a definição pendente. |
+| `tools/data-seeder/generators.ts` | Adicionar candidates e geradores determinísticos de agente e dispositivo; plantão somente após definição. |
+| `tools/data-seeder/validation.ts` | Validar identificadores, órgãos, unicidade, booleanos e coerência do payload conforme cada entidade. |
+| `tools/data-seeder/csv-generator.ts` | Ampliar unions, allowlist e dispatcher para selecionar o gerador e validador de cada entidade. |
+| `tests/unit/data-seeder-csv.spec.ts` | Cobrir geração determinística e serialização das novas entidades implementadas. |
+
+Não são necessárias alterações funcionais em:
+
+- `package.json`, pois `pnpm data:generate` já aponta para a CLI correta;
+- `tools/data-seeder/csv-cli.ts`, que já recebe schema, quantidade, saída e seed;
+- `tools/data-seeder/cli.ts`, `orchestrator.ts`, `persistence.ts` ou
+  `preflight.ts`, pertencentes ao fluxo de persistência direta;
+- `tools/scripts/generate-seed.ts`, que permanece responsável pelos seeds SQL
+  transacionais existentes.
