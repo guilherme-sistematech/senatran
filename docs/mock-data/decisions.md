@@ -42,3 +42,54 @@ Somente decisões que afetam diretamente o resultado do Data Seeder.
 - O seeder não deve mascarar filtros incorretos da aplicação com dados artificiais.
 - Execução contra ambiente de produção é proibida e deve falhar antes de qualquer
   escrita.
+
+## Agente — base da próxima implementação
+
+Para viabilizar exclusivamente o fluxo CSV → COPY → validação, a próxima etapa
+adotará uma estrutura mínima de agente com:
+
+- `cpf`;
+- `matricula`;
+- `codigo_orgao_autuador`;
+- `ativo`;
+- chave composta `(cpf, matricula, codigo_orgao_autuador)`.
+
+Estrutura proposta para a próxima implementação:
+
+```sql
+create table renainf.agente (
+  cpf                     text not null,
+  matricula               text not null,
+  codigo_orgao_autuador   text not null,
+  ativo                   boolean not null default true,
+  primary key (cpf, matricula, codigo_orgao_autuador)
+);
+```
+
+Essa é uma proposta de implementação derivada da investigação, e não uma tabela
+já existente nem a modelagem definitiva de agente no produto. A estrutura não
+terá `id bigserial` ou `payload` sem necessidade demonstrada. A massa será
+integralmente sintética.
+
+A próxima implementação não incluirá a consulta dessa estrutura pelo serviço, a
+regra R003 nem a emissão de `RENAINF.AIT.INVALID_AGENT`.
+
+## Dispositivo — base da próxima implementação
+
+- Usar `renainf.dispositivo` exatamente como está no DDL, sem redesenho.
+- O CSV terá as seis colunas existentes: `id_dispositivo`,
+  `codigo_orgao_autuador`, `homologado`, `ativo`, `sne_aderido` e `payload`.
+- Os IDs gerados serão diferentes dos seeds `DEV-0001` a `DEV-0015`. O namespace
+  `DEV-CSV-000001`, `DEV-CSV-000002`, ... é a convenção proposta para o gerador,
+  não uma regra de domínio.
+- Preservar os seeds existentes e não alterar `tools/scripts/generate-seed.ts`;
+  os CSVs não serão uma segunda fonte autoritativa para os mesmos IDs.
+- Não promover `descricao` ou `lavradoOffline` a colunas.
+
+## Plantão — decisão pendente
+
+Plantão não receberá DDL, schema, CSV, relações ou regras até que o responsável
+responda à única pergunta bloqueante:
+
+> O que “plantão” representa para a aplicação consumidora e quais campos ela
+> espera receber ou consultar?
