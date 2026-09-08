@@ -64,6 +64,39 @@ const spec = parse(
 };
 const schemas = spec.components.schemas;
 
+type NormativeFraming = {
+  codigo: string;
+  descricao: string;
+};
+
+/**
+ * The versioned TEAT corpus lives in the DDL that installs its relational
+ * snapshot. Reading the marked VALUES block keeps generated mock rows and the
+ * enforced FK backed by one source of truth.
+ */
+function loadNormativeFramings(): readonly NormativeFraming[] {
+  const ddl = readFileSync(
+    resolve(root, 'database/ddl/14-senatran-normative-corpus.sql'),
+    'utf8',
+  );
+  const block = /-- BEGIN TEAT NORMATIVE CORPUS([\s\S]*?)-- END TEAT NORMATIVE CORPUS/.exec(
+    ddl,
+  )?.[1];
+  if (!block) throw new Error('TEAT normative corpus block not found');
+
+  const rows = [...block.matchAll(/\('((?:''|[^'])*)', '((?:''|[^'])*)', '[^']*', '[0-9a-f-]+'::uuid\)/g)].map(
+    (match) => ({
+      codigo: match[1].replace(/''/g, "'"),
+      descricao: match[2].replace(/''/g, "'"),
+    }),
+  );
+  if (rows.length !== 106)
+    throw new Error(`Expected 106 TEAT normative framings, found ${rows.length}`);
+  return rows;
+}
+
+const NORMATIVE_FRAMINGS = loadNormativeFramings();
+
 type JsonSchema = {
   $ref?: string;
   type?: string;
@@ -810,7 +843,8 @@ for (let i = drivers.length; i < DRV; i++) {
     const d = rng.bool(0.6) ? rng.pick(drivers) : undefined;
     const org = rng.pick(ORGAOS_AUTUADOR);
     const ait = rng.digits(10);
-    const codInf = String(rng.int(50000, 79999));
+    const framing = rng.pick(NORMATIVE_FRAMINGS);
+    const codInf = framing.codigo;
     const renainf = rng.digits(12);
     const ctx = {
       ...infracaoCtx(rng, v, org, ait, codInf, renainf, d),
@@ -819,6 +853,17 @@ for (let i = drivers.length; i < DRV; i++) {
       uf: org.uf,
     };
     const situ = rng.pick(['1', '2', '3']);
+    // Generate the whole contract-shaped payload first to preserve the stable
+    // PRNG stream, then replace the three normative fields with curated data.
+    const infracaoPayload = payloadOf('Infracao', rng, ctx) as Record<
+      string,
+      unknown
+    >;
+    infracaoPayload.codigoInfracao = codInf;
+    infracaoPayload.codigoDesdobramentoInfracao = /^\d{5}$/.test(codInf)
+      ? codInf.slice(-1)
+      : '';
+    infracaoPayload.descricaoInfracao = framing.descricao;
     irows.push([
       sqlStr(ait),
       sqlStr(org.codigo),
@@ -832,7 +877,7 @@ for (let i = drivers.length; i < DRV; i++) {
       sqlStr(v.placa),
       sqlStr(situ),
       sqlStr(null),
-      sqlJson(payloadOf('Infracao', rng, ctx)),
+      sqlJson(infracaoPayload),
     ]);
     if (rng.bool(0.4))
       iocor.push([
@@ -1357,7 +1402,7 @@ const auditEvt = (
   for (const a of aits) {
     const v = rng.pick(vehicles);
     const org = rng.pick(ORGAOS_AUTUADOR);
-    const codInf = String(rng.int(50000, 79999));
+    const codInf = rng.pick(NORMATIVE_FRAMINGS).codigo;
     const aid = uuid(rng);
     const aitPayload = {
       numeroAit: a.ait,

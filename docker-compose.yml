@@ -11,6 +11,8 @@ services:
   # rebuilt on every `up` and there is nothing worth persisting.
   db:
     image: postgres:16
+    ports:
+      - "5433:5432"
     environment:
       POSTGRES_DB: senatran
       POSTGRES_USER: postgres

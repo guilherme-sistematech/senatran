@@ -30,7 +30,10 @@ if [ "$FULL" = 1 ]; then
   "${PSQL[@]}" -d postgres -c "create database $DB"
 fi
 
-DDL=(00-extensions 01-schemas 05-senatran-ref 10-senatran-entities \
+DDL=(00-extensions 01-schemas 05-senatran-ref 10-senatran-entities 11-senatran-relationships \
+     12-senatran-infracao-relationships \
+     13-senatran-infracao-condutor-registro \
+     14-senatran-normative-corpus \
      20-renach 21-renainf 22-audit 23-renaest 24-sne 25-cdt 26-detran 30-mock \
      90-contract-read 91-contract-transactional 92-comments)
 for f in "${DDL[@]}"; do
